@@ -39,6 +39,11 @@ copyfile('../../Dissertation/code/mex/L1TVL2OpticalFlowSource/functions.cpp','al
 copyfile('../../Dissertation/code/mex/L1TVTVOpticalFlowSource/functions.cpp','algorithms/mex/L1TVTVOpticalFlowCPP.cpp');
 
 copyfile('../../Dissertation/code/mex/L1TVOpticalFlowNonlinearSource/functions.cpp','algorithms/mex/L1TVOpticalFlowNonlinearCPP.cpp');
+copyfile('../../Dissertation/code/mex/mexTools/linearInterpolation.h','algorithms/mex/linearInterpolation.h');
+copyfile('../../Dissertation/code/mex/mexTools/linearInterpolation.cpp','algorithms/mex/linearInterpolation.cpp');
+copyfile('../../Dissertation/code/mex/mexTools/cubicInterpolation.h','algorithms/mex/cubicInterpolation.h');
+copyfile('../../Dissertation/code/mex/mexTools/cubicInterpolation.cpp','algorithms/mex/cubicInterpolation.cpp');
+
 
 %Core pyramid file
 copyfile('../../Dissertation/code/variationalModels/motionEstimationPyramid.m','motionEstimationPyramid.m');

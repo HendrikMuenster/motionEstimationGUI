@@ -40,13 +40,6 @@ function [x,y] = L1TVOpticalFlow(image1,image2,tol,lambda,varargin)
     ux = Dy2Dc*image2(:);
     ut = image2(:)-image1(:);
     
-    %figure(1007);imagesc(reshape( ut,size(image1) ));
-    
-    %    figure(300);imagesc(reshape( ux,size(image1) ));colormap(gray);axis image;
-    %figure(301);imagesc(reshape( uy,size(image1) ));colormap(gray);axis image;
-    
-    %pause
-    
     clear D2Dp D2Dc Dx2Dc Dy2Dc;
     
     nPx = numel(image1);

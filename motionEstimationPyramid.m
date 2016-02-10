@@ -15,9 +15,9 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
     initVar('stepsize',[1 1 1]);
     initVar('discretization',1);
     initVar('numsteps',200);
-    initVar('steplength',0.99);
+    initVar('steplength',0.95);
     initVar('numberOfWarps',5);
-    initVar('huberEpsilon',0.0001);
+    initVar('huberEpsilon',0.01);
     
     %option to define useCPP from outside
     if (~exist('useCPP','var'))

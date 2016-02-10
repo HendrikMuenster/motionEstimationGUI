@@ -24,29 +24,18 @@ function [x,y] = L1TVOpticalFlowNonlinear(image1,image2,tol,lambda,varargin)
     %insert is a list of images, output a list of velocity fields
     %returns primal and dual variable
     vararginParser;
+	nPx = numel(image1);
     
     %allocate grid for warping
     M = size(image1,1);
     N = size(image1,2);
     [imageGrid(:,:,1),imageGrid(:,:,2)] = meshgrid(1:N,1:M);
 
-    nPx = M*N;
-    
-    %[ Dx2Dc,Dy2Dc ] = generateCentralGradient2D( size(image1),1);
-    
-    %uy = Dx2Dc*image1(:);
-    %ux = Dy2Dc*image1(:);
-    %ut = image2(:)-image1(:);
-    
-    %clear Dx2Dc Dy2Dc;
-    
-    [ Dx2D,Dy2D ] = generateForwardGradient2D( size(image1),[1 1]);
-    [ gradientComplete] = generateCentralGradientND( size(image1),[1 1] );
-    gradX = gradientComplete(1:nPx,:);
-    gradY = gradientComplete(nPx+1:end,:);
-    clear gradientComplete;
-    
-    
+	D2Dp = generateForwardGradientND( size(image1),[1,1]);
+	
+	Dx2D = D2Dp(0*nPx+1:1*nPx,:);
+	Dy2D = D2Dp(1*nPx+1:2*nPx,:);
+
     nPx = numel(image1);
     tau = 1/sqrt(8);
     sigma = tau;
@@ -73,7 +62,7 @@ function [x,y] = L1TVOpticalFlowNonlinear(image1,image2,tol,lambda,varargin)
 
     reverseStr = [];
 
-    for steps=1:1
+    for steps=1:5
         %Warp Image 1
         xReshape = reshape(x,[M,N,2]);
         
@@ -91,10 +80,6 @@ function [x,y] = L1TVOpticalFlowNonlinear(image1,image2,tol,lambda,varargin)
         image2Warp = interp2(image2,idxx,idyy,'bicubic');
         image1WarpGradient(:,:,1) = interp2(image2,idxp,idyy,'bicubic') - interp2(image2,idxm,idyy,'bicubic');
         image1WarpGradient(:,:,2) = interp2(image2,idxx,idyp,'bicubic') - interp2(image2,idxx,idym,'bicubic');
-        
-        %image1WarpGradient(:,:,1) = reshape(gradY*image2Warp(:),[M,N]);
-        %image1WarpGradient(:,:,2) = reshape(gradX*image2Warp(:),[M,N]);
-        
         image1WarpGradient(:,:,3) = image2Warp - image1;
 
         image1WarpGradient(1,:,:) = 0;

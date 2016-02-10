@@ -16,5 +16,5 @@ mex -largeArrayDims -outdir algorithms/mex -v COMPFLAGS="$COMPFLAGS -openmp" OPT
 mex -largeArrayDims -outdir algorithms/mex -v COMPFLAGS="$COMPFLAGS -openmp" OPTIMFLAGS="$OPTIMFLAGS"  LINKFALGS="$LINKFALGS -openmp -O3 -funroll-loops" CFLAGS="$CFLAGS -fopenmp" CXXFLAGS="$CXXFLAGS -fopenmp -O3 -funroll-loops" LDFLAGS="$LDFLAGS -fopenmp" 'algorithms/mex/L1TVTVOpticalFlowCPP.cpp' 'algorithms/mex/tools.cpp'
 
 mex -largeArrayDims -outdir algorithms/mex -v COMPFLAGS="$COMPFLAGS -openmp" OPTIMFLAGS="$OPTIMFLAGS"  LINKFALGS="$LINKFALGS -openmp -O3 -funroll-loops" CFLAGS="$CFLAGS -fopenmp" CXXFLAGS="$CXXFLAGS -fopenmp -O3 -funroll-loops" LDFLAGS="$LDFLAGS -fopenmp" 'algorithms/mex/L2TVBregOpticalFlowCPP.cpp' 'algorithms/mex/tools.cpp'
-
-mex -largeArrayDims -outdir algorithms/mex -v COMPFLAGS="$COMPFLAGS -openmp" OPTIMFLAGS="$OPTIMFLAGS"  LINKFALGS="$LINKFALGS -openmp" CFLAGS="$CFLAGS -fopenmp" CXXFLAGS="$CXXFLAGS -fopenmp" LDFLAGS="$LDFLAGS -fopenmp" 'algorithms/mex/L1TVOpticalFlowNonlinearCPP.cpp' 'algorithms/mex/tools.cpp'
+%%
+mex -largeArrayDims -outdir algorithms/mex -v COMPFLAGS="$COMPFLAGS -openmp" OPTIMFLAGS="$OPTIMFLAGS"  LINKFALGS="$LINKFALGS -openmp" CFLAGS="$CFLAGS -fopenmp" CXXFLAGS="$CXXFLAGS -fopenmp" LDFLAGS="$LDFLAGS -fopenmp" 'algorithms/mex/L1TVOpticalFlowNonlinearCPP.cpp' 'algorithms/mex/tools.cpp'  'algorithms/mex/linearInterpolation.cpp'  'algorithms/mex/cubicInterpolation.cpp'

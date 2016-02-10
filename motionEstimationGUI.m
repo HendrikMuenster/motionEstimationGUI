@@ -299,40 +299,40 @@ if (isfield(handles, 'rawImage1') && isfield(handles, 'rawImage2'))
     switch algorithmNumber
         case 1
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L2L2OpticalFlow',4,'maxIt',maxIterations,'numsteps',numSteps);
-            v1 = x(:,:,1);
-            v2 = x(:,:,2);
+            v1 = x(:,:,1,1);
+            v2 = x(:,:,1,2);
         case 2
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L2L2MassPreservation',5,'maxIt',maxIterations,'numsteps',numSteps);
-            v1 = x(:,:,1);
-            v2 = x(:,:,2);
+            v1 = x(:,:,1,1);
+            v2 = x(:,:,1,2);
         case 3
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L2TVOpticalFlow',4,'maxIt',maxIterations,'numsteps',numSteps,'typeNorm',norm);
-            v1 = x(:,:,1);
-            v2 = x(:,:,2);
+            v1 = x(:,:,1,1);
+            v2 = x(:,:,1,2);
         case 4
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L2TVMassPreservation',5,'maxIt',maxIterations,'numsteps',numSteps,'typeNorm',norm);
-            v1 = x(:,:,1);
-            v2 = x(:,:,2);
+            v1 = x(:,:,1,1);
+            v2 = x(:,:,1,2);
         case 5
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L1TVOpticalFlow',4,'maxIt',maxIterations,'numsteps',numSteps,'typeNorm',norm);
-            v1 = x(:,:,1);
-            v2 = x(:,:,2);
+            v1 = x(:,:,1,1);
+            v2 = x(:,:,1,2);
         case 6
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L1TVMassPreservation',5,'maxIt',maxIterations,'numsteps',numSteps,'typeNorm',norm);
             v1 = x(:,:,1);
             v2 = x(:,:,2);
         case 7
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L1L2OpticalFlow',4,'maxIt',maxIterations,'numsteps',numSteps);
-            v1 = x(:,:,1);
-            v2 = x(:,:,2);
+            v1 = x(:,:,1,1);
+            v2 = x(:,:,1,2);
         case 8
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L1L2MassPreservation',5,'maxIt',maxIterations,'numsteps',numSteps);
             v1 = x(:,:,1);
             v2 = x(:,:,2);
         case 9
             [x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L1TVOpticalFlowNonlinear',4,'maxIt',maxIterations,'numsteps',numSteps,'typeNorm',norm);
-            v1 = x(:,:,1);
-            v2 = x(:,:,2);
+            v1 = x(:,:,1,1);
+            v2 = x(:,:,1,2);
     end
     
     axes(handles.axisResultImage);

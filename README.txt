@@ -55,3 +55,6 @@ List of changes:
 ## Version 1.3 ##
 - Bugfixes
 - Missing files added
+
+## Version 1.4 ##
+- Bugfixes
