@@ -80,7 +80,6 @@ function [x,y] = L2L2OpticalFlow(image1,image2,tol,lambda,varargin)
         Kty(:,1) = Dx2D'*y(:,1) + Dy2D'*y(:,2);
         Kty(:,2) = Dx2D'*y(:,3) + Dy2D'*y(:,4);
        
-        
         xHat = x - tau*Kty;
 
         b1 = xHat(:,1) - tau*uxut;

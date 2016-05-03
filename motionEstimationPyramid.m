@@ -11,13 +11,23 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
     initVar('x',zeros([dimsU,numPrimalVars]));
     initVar('y',zeros([dimsU,numDualVars]));
     initVar('maxIt',10000);
-    initVar('typeNorm',3);
+    initVar('typeNorm',4);
+    initVar('huberEpsilon',0.01);
+    
     initVar('stepsize',[1 1 1]);
     initVar('discretization',1);
     initVar('numsteps',200);
-    initVar('steplength',0.95);
-    initVar('numberOfWarps',5);
-    initVar('huberEpsilon',0.01);
+    initVar('steplength',0.8);
+    initVar('numberOfWarps',3);
+    
+    
+    
+    smoothSigma = 1/sqrt(2*steplength);
+    initVar('doGaussianSmoothing',1);
+    initVar('medianFiltering',1);
+    initVar('adjustStepsize',1);
+    
+    initVar('gradientConstancy',1);
     
     %option to define useCPP from outside
     if (~exist('useCPP','var'))
@@ -27,11 +37,18 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
             useCPP = 0;
         end
     end
+    
+    % generate smoothing mask:
+    mask = fspecial('gaussian', [100, 100], smoothSigma);
+    a = diag(mask);
+    cut = find(a>1e-5, 1, 'first');
+    mask = mask(cut:100-cut+1, cut:100-cut+1);
+    mask = mask/sum(mask(:));
 
     %automatic step length generation
     steps = 1;
     for i=2:numsteps
-        if (steplength*steps(i-1)*size(u,1) > 5 && steplength*steps(i-1)*size(u,2) > 5)
+        if (steplength*steps(i-1)*size(u,1) > 10 && steplength*steps(i-1)*size(u,2) > 10)
             steps(i) = steplength*steps(i-1);
         else
             break;
@@ -55,7 +72,7 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
             oldHeight = size(uTmp,1);
             oldWidth = size(uTmp,2);
         end
-
+        
         checkImage = imresize(u(:,:,1),steps(i),'cubic');
 
         newHeight = size(checkImage,1);
@@ -69,8 +86,15 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
 
         %rescale all variable to current level
         for j=1:dimsU(3)
-            uTmp(:,:,j) = imresize(u(:,:,j),newSize,'cubic');
+            if (doGaussianSmoothing)
+                uTmp2 = u(:,:,j);
+                uTmp2 = imfilter(uTmp2, mask, 'replicate');
 
+                uTmp(:,:,j) = imresize(uTmp2,newSize,'cubic');
+            else
+                uTmp(:,:,j) = imresize(u(:,:,j),newSize,'cubic');
+            end
+            
             if (j < dimsU(3))
                 %rescale velocity field
                 xTmp(:,:,j,1) = imresize(x(:,:,j,1),newSize,'nearest')*newHeight/oldHeight;
@@ -88,6 +112,17 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
         
         x = [];
         y = [];
+        
+        if (adjustStepsize)
+            %adjust steplength to reference grid of max length 256
+            maxDim = max(dimsU(1),dimsU(2));
+            
+            stepsize(2) = 512/maxDim * dimsU(1) / newSize(1);
+            stepsize(3) = 512/maxDim * dimsU(2) / newSize(2);
+            stepsize(2) = dimsU(1) / newSize(1);
+            stepsize(3) = dimsU(2) / newSize(2);
+        end
+        %stepsize*newSize(1)
 
         for j=1:dimsU(3)-1
 
@@ -106,14 +141,15 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
                     if (strcmp(algorithmName,'L2TVBregOpticalFlow'))
                         [x(:,:,j,1),x(:,:,j,2),yRes] = eval(['L2TVBregOpticalFlowCPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,numBreg)']);
                     elseif (strcmp(algorithmName,'L1TVOpticalFlowNonlinear'))
-                        [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps,huberEpsilon)']);
+                        
+                        [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps,huberEpsilon,gradientConstancy)']);
                     else
                         [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps)']);
                     end
                     
                     
                 end
-                
+
                 yRes = reshape(yRes,[newHeight,newWidth,numDualVars]);
                 for k=1:numDualVars
                     y(:,:,j,k) = yRes(:,:,k);
@@ -131,7 +167,7 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
                 if (exist('alpha1','var'))
                     [xRes,yRes] = eval([algorithmName,'(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,alpha1,''x'',xT,''y'',yT,''maxIt'',maxIt)']);
                 else
-                    [xRes,yRes] = eval([algorithmName,'(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,''x'',xT,''y'',yT,''maxIt'',maxIt)']);
+                    [xRes,yRes] = eval([algorithmName,'(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,''x'',xT,''y'',yT,''maxIt'',maxIt,''stepsize'',stepsize,''huberEpsilon'',huberEpsilon,''typeNorm'',typeNorm)']);
                 end
                 
                 for k=1:numPrimalVars
@@ -140,14 +176,20 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
                 for k=1:numDualVars
                     y(:,:,j,k) = yRes(:,:,k);
                 end
-
             end
             
+            if (medianFiltering)
+                x(:,:,j,1) = medfilt2(x(:,:,j,1), [5 5],'symmetric');
+                x(:,:,j,2) = medfilt2(x(:,:,j,2), [5 5],'symmetric');
+            end
 
         end
+        
+        flowField = squeeze(x(:,:,1,:));
+        
 
-        %figure(4);imagesc(colourfulOrientationPlot(x(:,:,1,1),x(:,:,1,2),5));drawnow;
-
+        figure(4);imagesc(flowToColorV2(flowField));axis image;drawnow;
+        %pause
     end
     
     %add zero frames
