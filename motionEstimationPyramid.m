@@ -141,7 +141,6 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
                     if (strcmp(algorithmName,'L2TVBregOpticalFlow'))
                         [x(:,:,j,1),x(:,:,j,2),yRes] = eval(['L2TVBregOpticalFlowCPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,numBreg)']);
                     elseif (strcmp(algorithmName,'L1TVOpticalFlowNonlinear'))
-                        
                         [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps,huberEpsilon,gradientConstancy)']);
                     else
                         [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps)']);
