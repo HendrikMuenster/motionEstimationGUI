@@ -34,10 +34,8 @@ If you use this framwork, please use the following citation
 }
 
 Install Instructions:
-This software package is provided with MATLAB and C-MEX versions of all 
-motion estimation algorithms. We highly recommed to use the C-MEX version
-since the runtime decreases by factors up to 100. To compile the software,
-simply run the script "compileMexFiles.m"
+Make sure you have downloaded a copy of flexBox from www.flexbox.im and this copy is in your MATALB path. 
+Moreover, you should compile the C++-module for runtime reasons! Afterwards, run example.m
 
 Further copyright notes:
 - The files "computeColor.m", "writeFlowFile.m" and the original version of "flowToColorV2.m" have been developed by Deqing Sun, Department of Computer Science, Brown University (dqsun@cs.brown.edu)
