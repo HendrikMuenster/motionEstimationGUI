@@ -8,8 +8,8 @@
 % Contact: hendrik.dirks@wwu.de
 %
 %
-% Version 1.1
-% Date: 2015-09-01
+% Version 2.0
+% Date: 2016-09-27
 
 % All Rights Reserved
 %
@@ -44,17 +44,24 @@ Further copyright notes:
 - The dataset in the "data" folder comes from the Middlebury optical flow database (http://vision.middlebury.edu/flow/)
 
 List of changes:
+## Version 2.0 ##
+- Motion estimator completely rewritten:
+-- Based on flexBox
+-- CUDA and C++ support
+-- Large-scale motion estimation based on coarse-to-fine warping
+## Version 1.4 ##
+- Bugfixes
+## Version 1.3 ##
+- Bugfixes
+- Missing files added
+## Version 1.2 ##
+- Bugfixes
 ## Version 1.1 ##
 - Add a coarse-to-fine warping for all algorithms and set the maxIterations to default number of 10. Coarse-to-fine warping can be turned off by setting the "Pyramid steps" 
   to 1 and increasing the "Max Iterations"
 - Added a L1-TV optical flow method with nonlinear data attachment term (in fact it's still a linearization, but closer to the classical attachment term)
 
-## Version 1.2 ##
-- Bugfixes
 
-## Version 1.3 ##
-- Bugfixes
-- Missing files added
 
-## Version 1.4 ##
-- Bugfixes
+
+
