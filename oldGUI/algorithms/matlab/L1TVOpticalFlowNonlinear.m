@@ -151,7 +151,7 @@ function [x,y] = L1TVOpticalFlowNonlinear(image1,image2,tol,lambda,varargin)
             Kty(:,1) = Dx2D'*y(:,1) + Dy2D'*y(:,2);
             Kty(:,2) = Dx2D'*y(:,3) + Dy2D'*y(:,4);
 
-            xHat = x - tau*Kty;
+            xHat = xOld - tau*Kty;
 
             rho = ut + ux.*xHat(:,1) + uy.*xHat(:,2);
 

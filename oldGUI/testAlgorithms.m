@@ -77,9 +77,14 @@ numDualVars = 5;
 
 figure(8);clf;imagesc(flowToColorV2(cat(3,x(:,:,1),x(:,:,2))));
 %%
-alpha = 0.03;
-numDualVars = 4;
-[x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L1TVOpticalFlowNonlinear',numDualVars,'maxIt',10,'numsteps',100);
+
+u = cat(3,image1,image2);
+dimsU = size(u);
+tol = 1e-5;
+
+alpha = 0.05;
+numDualVars = 7;
+[x,~] = motionEstimationPyramid(u,dimsU,tol,alpha,'L1TVOpticalFlowNonlinear',numDualVars,'maxIt',1000,'numsteps',1);
 
 figure(9);clf;imagesc(flowToColorV2(cat(3,x(:,:,1,1),x(:,:,1,2))));
 

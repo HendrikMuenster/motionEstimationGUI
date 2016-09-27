@@ -5,6 +5,9 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
         varargin = [varargin{:}];
     end
     vararginParser;
+    
+    initVar('useCPP',0);
+    initVar('useCudaCPP',0);
 
 	initVar('verbose',0);
     initVar('numPrimalVars',2);
@@ -25,18 +28,21 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
     smoothSigma = 1/sqrt(2*steplength);
     initVar('doGaussianSmoothing',1);
     initVar('medianFiltering',1);
-    initVar('adjustStepsize',1);
+    initVar('adjustStepsize',0);
     
-    initVar('gradientConstancy',1);
+    initVar('gradientConstancy',0);
     
-    %option to define useCPP from outside
-    if (~exist('useCPP','var'))
-        if (exist([algorithmName,'CPP'],'file'))
+     %option to define useCPP from outside
+    if (useCPP ~= 2)
+        if (exist([algorithmName,'CudaCPP'],'file'))
+            useCudaCPP = 1;
+        elseif (exist([algorithmName,'CPP'],'file'))
             useCPP = 1;
         else
             useCPP = 0;
         end
     end
+    
     
     % generate smoothing mask:
     mask = fspecial('gaussian', [100, 100], smoothSigma);
@@ -126,7 +132,13 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
 
         for j=1:dimsU(3)-1
 
-            if (useCPP)
+            if (useCPP || useCudaCPP)
+                if (useCudaCPP)
+                    cudaString = 'Cuda';
+                else
+                    cudaString = '';
+                end
+                
                 xT = xTmp(:,:,j,:);
                 yT = yTmp(:,:,j,:);
             
@@ -141,9 +153,9 @@ function [x,y] = motionEstimationPyramid(u,dimsU,tol,alpha,algorithmName,numDual
                     if (strcmp(algorithmName,'L2TVBregOpticalFlow'))
                         [x(:,:,j,1),x(:,:,j,2),yRes] = eval(['L2TVBregOpticalFlowCPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,numBreg)']);
                     elseif (strcmp(algorithmName,'L1TVOpticalFlowNonlinear'))
-                        [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps,huberEpsilon,gradientConstancy)']);
+                        [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,cudaString,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps,huberEpsilon,gradientConstancy)']);
                     else
-                        [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps)']);
+                        [x(:,:,j,1),x(:,:,j,2),yRes] = eval([algorithmName,cudaString,'CPP','(uTmp(:,:,j),uTmp(:,:,j+1),tol,alpha,maxIt,typeNorm,xT,yT,stepsize,discretization,numberOfWarps)']);
                     end
                     
                     
