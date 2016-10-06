@@ -47,22 +47,22 @@ u = cat(3,image1,image2);
 tol = 1e-5;
 alpha = 0.015;
 
+dataTerm = 'L1';
+regularizerTerm = 'Huber';
+doGradientConstancy = 1;
+steplength = 0.8;
+numberOfWarps = 3;
+
 %% 
 
-motionEstimator = motionEstimatorClass(u,tol,alpha);
+motionEstimator = motionEstimatorClass(u,tol,alpha,'dataTerm',dataTerm,'regularizerTerm',regularizerTerm,'doGradientConstancy',doGradientConstancy,'steplength',steplength,'numberOfWarps',numberOfWarps);
 motionEstimator.init;
 
-motionEstimator.verbose = 1;
+motionEstimator.verbose = 2;
 
 %%
 motionEstimator.runPyramid
 
-%%
-
-motionEstimator.resetImages(u);
-
-%%
-motionEstimator.runLevel(1);
 %%
 v = motionEstimator.getResult;
 

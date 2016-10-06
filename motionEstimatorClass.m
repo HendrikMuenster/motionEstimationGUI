@@ -27,7 +27,11 @@ classdef motionEstimatorClass < handle
         medianFiltering
         imageSequence
         dims
+        
         flowTermNumber
+        
+        doGradientConstancy
+        gradConstancyTermNumber
         
         dataTerm
         regularizerTerm
@@ -86,6 +90,12 @@ classdef motionEstimatorClass < handle
                 obj.dataTerm = 'L1';
             end
             
+            if (exist('doGradientConstancy','var'))
+                obj.doGradientConstancy = doGradientConstancy;
+            else
+                obj.doGradientConstancy = 0;
+            end
+            
             if (exist('regularizerTerm','var'))
                 obj.regularizerTerm = regularizerTerm;
             else
@@ -94,20 +104,11 @@ classdef motionEstimatorClass < handle
         end
         
         function init(obj)
-            
-            % generate smoothing mask:
-            smoothSigma = 1/sqrt(2*obj.steplength);
-            mask = fspecial('gaussian', [100, 100], smoothSigma);
-            a = diag(mask);
-            cut = find(a>1e-5, 1, 'first');
-            mask = mask(cut:100-cut+1, cut:100-cut+1);
-            mask = mask/sum(mask(:));
-            
             %generate list of steps
             obj.steps = 1;
             i = 2;
             while i < Inf
-                if (obj.steplength*obj.steps(i-1) * obj.dims{1}(1) > 10 && obj.steplength*obj.steps(i-1)*obj.dims{1}(2) > 10)
+                if (obj.steplength*obj.steps(i-1) * obj.dims{1}(1) > 25 && obj.steplength*obj.steps(i-1)*obj.dims{1}(2) > 25)
                     obj.steps(i) = obj.steplength*obj.steps(i-1);
                     
                     obj.dims{i} = round(obj.dims{1} * obj.steps(i));
@@ -122,16 +123,15 @@ classdef motionEstimatorClass < handle
             %% create flexBox obejects
             
             for i=1:numel(obj.steps)
+                % generate smoothing mask:
+                smoothSigma = 1/sqrt(2*obj.steplength);
+                mask = fspecial('gaussian', [9, 9], smoothSigma);
+                
                 main = flexBox;
                 main.params.maxIt = obj.maxIt;
                 main.params.tryCPP = 1;
                 
                 tmpDims = obj.dims{i}(1:2);
-                
-%                 for j=1:obj.dims{i}(3)
-%                     figure(12+j);imagesc(obj.imageSequence(:,:,j));axis image;
-%                     pause
-%                 end
 
                 for j=1:obj.dims{i}(3)-1
                     %add two primal variables numbers are 2j-1 and 2j
@@ -141,20 +141,36 @@ classdef motionEstimatorClass < handle
                     main.addTerm(emptyDataTerm(),numP1);
                     main.addTerm(emptyDataTerm(),numP2);
                     
-                    uTmp1 = imfilter(obj.imageSequence(:,:,j), mask, 'replicate');
-                    uTmp2 = imfilter(obj.imageSequence(:,:,j+1), mask, 'replicate');
+                    
+                    if (i==1)
+                        uTmp1 = obj.imageSequence(:,:,j);
+                        uTmp2 = obj.imageSequence(:,:,j+1);
+                    else
+                        uTmp1 = imfilter(uTmp1, mask, 'replicate');
+                        uTmp2 = imfilter(uTmp2, mask, 'replicate');
+                    end
 
                     uTmp1 = imresize(uTmp1,tmpDims,'bicubic');
                     uTmp2 = imresize(uTmp2,tmpDims,'bicubic');
 
                     %add optical flow data term
                     if (strcmp(obj.dataTerm,'L2'))
-                        main.addTerm(L2opticalFlowTerm(1,uTmp1,uTmp2),[numP1,numP2]);
+                        obj.flowTermNumber(j) = main.addTerm(L2opticalFlowTerm(1,uTmp1,uTmp2),[numP1,numP2]);
+                        
+                        if (obj.doGradientConstancy)
+                            obj.gradConstancyTermNumber(j,1) = main.addTerm(L2opticalFlowTerm(1,uTmp1,uTmp2,'termType','gradientConstancy','constancyDimension',1),[numP1,numP2]);
+                            obj.gradConstancyTermNumber(j,2) = main.addTerm(L2opticalFlowTerm(1,uTmp1,uTmp2,'termType','gradientConstancy','constancyDimension',2),[numP1,numP2]);
+                        end
                     else %default is L1
-                        main.addTerm(L1opticalFlowTerm(1,uTmp1,uTmp2),[numP1,numP2]);
+                        obj.flowTermNumber(j) = main.addTerm(L1opticalFlowTerm(1,uTmp1,uTmp2),[numP1,numP2]);
+                        
+                        if (obj.doGradientConstancy)
+                            obj.gradConstancyTermNumber(j,1) = main.addTerm(L1opticalFlowTerm(1,uTmp1,uTmp2,'termType','gradientConstancy','constancyDimension',1),[numP1,numP2]);
+                            obj.gradConstancyTermNumber(j,2) = main.addTerm(L1opticalFlowTerm(1,uTmp1,uTmp2,'termType','gradientConstancy','constancyDimension',2),[numP1,numP2]);
+                        end
                     end
                     
-                    obj.flowTermNumber(j) = numel(main.duals);
+                    %obj.flowTermNumber(j) = numel(main.duals);
 
                     %add regularizers - one for each component
                     if (strcmp(obj.regularizerTerm,'L2'))
@@ -223,6 +239,11 @@ classdef motionEstimatorClass < handle
                 %warp data terms
                 for j=1:obj.dims{i}(3)-1
                     obj.listFlexbox{i}.duals{obj.flowTermNumber(j)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+                    
+                    if (obj.doGradientConstancy)
+                        obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,1)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+                        obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,2)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+                    end
                 end
 
                 obj.listFlexbox{i}.runAlgorithm;
