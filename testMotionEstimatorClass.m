@@ -32,9 +32,6 @@ image2 = im2double(image2);
 image1 = imresize(image1,1);
 image2 = imresize(image2,1);
 
-%image1 = image1(1:200,1:200);
-%image2 = image2(1:200,1:200);
-
 flowGT = readFlowFile(['data',filesep,'flow10.flo']);
 flowGT2 = flowGT;
 flowGT2(abs(flowGT)>1e2) = 0;
@@ -47,6 +44,7 @@ u = cat(3,image1,image2);
 tol = 1e-5;
 alpha = 0.015;
 
+verbose = 2;
 dataTerm = 'L1';
 regularizerTerm = 'Huber';
 doGradientConstancy = 1;
@@ -58,7 +56,7 @@ numberOfWarps = 3;
 motionEstimator = motionEstimatorClass(u,tol,alpha,'dataTerm',dataTerm,'regularizerTerm',regularizerTerm,'doGradientConstancy',doGradientConstancy,'steplength',steplength,'numberOfWarps',numberOfWarps);
 motionEstimator.init;
 
-motionEstimator.verbose = 2;
+motionEstimator.verbose = verbose;
 
 %%
 motionEstimator.runPyramid

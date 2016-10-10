@@ -104,6 +104,13 @@ classdef motionEstimatorClass < handle
         end
         
         function init(obj)
+            
+
+            %a = diag(mask);
+            %cut = find(a>1e-5, 1, 'first');
+            %mask = mask(cut:100-cut+1, cut:100-cut+1);
+            %mask = mask/sum(mask(:));
+            
             %generate list of steps
             obj.steps = 1;
             i = 2;
@@ -125,8 +132,9 @@ classdef motionEstimatorClass < handle
             for i=1:numel(obj.steps)
                 % generate smoothing mask:
                 smoothSigma = 1/sqrt(2*obj.steplength);
-                mask = fspecial('gaussian', [9, 9], smoothSigma);
+                mask = fspecial('gaussian', [99 99], smoothSigma);
                 
+                clear main;
                 main = flexBox;
                 main.params.maxIt = obj.maxIt;
                 main.params.tryCPP = 1;
@@ -141,32 +149,37 @@ classdef motionEstimatorClass < handle
                     main.addTerm(emptyDataTerm(),numP1);
                     main.addTerm(emptyDataTerm(),numP2);
                     
-                    
                     if (i==1)
-                        uTmp1 = obj.imageSequence(:,:,j);
-                        uTmp2 = obj.imageSequence(:,:,j+1);
+                        uTmp1{i,j} = obj.imageSequence(:,:,j);
+                        uTmp2{i,j} = obj.imageSequence(:,:,j+1);
                     else
-                        uTmp1 = imfilter(uTmp1, mask, 'replicate');
-                        uTmp2 = imfilter(uTmp2, mask, 'replicate');
+                        uTmp1{i,j} = imfilter(uTmp1{i-1,j}, mask, 'replicate');
+                        uTmp2{i,j} = imfilter(uTmp2{i-1,j}, mask, 'replicate');
                     end
 
-                    uTmp1 = imresize(uTmp1,tmpDims,'bicubic');
-                    uTmp2 = imresize(uTmp2,tmpDims,'bicubic');
+                    uTmp1{i,j} = imresize(uTmp1{i,j},tmpDims,'bicubic');
+                    uTmp2{i,j} = imresize(uTmp2{i,j},tmpDims,'bicubic');
 
                     %add optical flow data term
                     if (strcmp(obj.dataTerm,'L2'))
-                        obj.flowTermNumber(j) = main.addTerm(L2opticalFlowTerm(1,uTmp1,uTmp2),[numP1,numP2]);
+                        main.addTerm(L2opticalFlowTerm(1,uTmp1,uTmp2),[numP1,numP2]);
+                        obj.flowTermNumber(j) = numel(main.duals);
                         
                         if (obj.doGradientConstancy)
-                            obj.gradConstancyTermNumber(j,1) = main.addTerm(L2opticalFlowTerm(1,uTmp1,uTmp2,'termType','gradientConstancy','constancyDimension',1),[numP1,numP2]);
-                            obj.gradConstancyTermNumber(j,2) = main.addTerm(L2opticalFlowTerm(1,uTmp1,uTmp2,'termType','gradientConstancy','constancyDimension',2),[numP1,numP2]);
+                            main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',1),[numP1,numP2]);
+                            obj.gradConstancyTermNumber(j,1) = numel(main.duals);
+                            main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',2),[numP1,numP2]);
+                            obj.gradConstancyTermNumber(j,2) = numel(main.duals);
                         end
                     else %default is L1
-                        obj.flowTermNumber(j) = main.addTerm(L1opticalFlowTerm(1,uTmp1,uTmp2),[numP1,numP2]);
+                        main.addTerm(L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j}),[numP1,numP2]);
+                        obj.flowTermNumber(j) = numel(main.duals);
                         
                         if (obj.doGradientConstancy)
-                            obj.gradConstancyTermNumber(j,1) = main.addTerm(L1opticalFlowTerm(1,uTmp1,uTmp2,'termType','gradientConstancy','constancyDimension',1),[numP1,numP2]);
-                            obj.gradConstancyTermNumber(j,2) = main.addTerm(L1opticalFlowTerm(1,uTmp1,uTmp2,'termType','gradientConstancy','constancyDimension',2),[numP1,numP2]);
+                            main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',1),[numP1,numP2]);
+                            obj.gradConstancyTermNumber(j,1) = numel(main.duals);
+                            main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',2),[numP1,numP2]);
+                            obj.gradConstancyTermNumber(j,2) = numel(main.duals);
                         end
                     end
                     
@@ -247,28 +260,27 @@ classdef motionEstimatorClass < handle
                 end
 
                 obj.listFlexbox{i}.runAlgorithm;
+            end
+            
+            %upsample at the end of a level
+            if (obj.medianFiltering)
+                for j=1:obj.dims{i}(3)-1
 
-                if (obj.medianFiltering)
-                    for j=1:obj.dims{i}(3)-1
+                    obj.listFlexbox{i}.x{2*j-1} = medfilt2(obj.listFlexbox{i}.getPrimal(2*j-1), [5 5],'symmetric');
+                    obj.listFlexbox{i}.x{2*j} = medfilt2(obj.listFlexbox{i}.getPrimal(2*j), [5 5],'symmetric');
 
-                        obj.listFlexbox{i}.x{2*j-1} = medfilt2(obj.listFlexbox{i}.getPrimal(2*j-1), [5 5],'symmetric');
-                        obj.listFlexbox{i}.x{2*j} = medfilt2(obj.listFlexbox{i}.getPrimal(2*j), [5 5],'symmetric');
-                        
-                        obj.listFlexbox{i}.x{2*j-1} = obj.listFlexbox{i}.x{2*j-1}(:);
-                        obj.listFlexbox{i}.x{2*j} = obj.listFlexbox{i}.x{2*j}(:);
+                    obj.listFlexbox{i}.x{2*j-1} = obj.listFlexbox{i}.x{2*j-1}(:);
+                    obj.listFlexbox{i}.x{2*j} = obj.listFlexbox{i}.x{2*j}(:);
 
-                        if (obj.verbose > 1)%on massive verbose
-                            clear flowField;
-                            flowField(:,:,1) = obj.listFlexbox{i}.getPrimal(2*j-1);
-                            flowField(:,:,2) = obj.listFlexbox{i}.getPrimal(2*j);
+                    if (obj.verbose > 1)%on massive verbose
+                        clear flowField;
+                        flowField(:,:,1) = obj.listFlexbox{i}.getPrimal(2*j-1);
+                        flowField(:,:,2) = obj.listFlexbox{i}.getPrimal(2*j);
 
-                            figure(300+j);imagesc(flowToColorV2(flowField));axis image;title(['Level #',num2str(i),' : Field #',num2str(j)]);drawnow;
-                            
-                        end
+                        figure(300+j);imagesc(flowToColorV2(flowField));axis image;title(['Level #',num2str(i),' : Field #',num2str(j)]);drawnow;
+
                     end
                 end
-
-
             end
         end
         
