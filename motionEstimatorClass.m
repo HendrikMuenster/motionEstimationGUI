@@ -23,6 +23,7 @@ classdef motionEstimatorClass < handle
         steplength
         steps
         numberOfWarps
+        doWarping
         doGaussianSmoothing
         medianFiltering
         imageSequence
@@ -72,6 +73,12 @@ classdef motionEstimatorClass < handle
                 obj.numberOfWarps = numberOfWarps;
             else
                 obj.numberOfWarps = 3;
+            end
+            
+            if (exist('doWarping','var'))
+                obj.doWarping = doWarping;
+            else
+                obj.doWarping = 1;
             end
             
             if (exist('doGaussianSmoothing','var'))
@@ -146,6 +153,7 @@ classdef motionEstimatorClass < handle
                 
                 clear main;
                 main = flexBox;
+                main.params.verbose = obj.verbose;
                 main.params.maxIt = obj.maxIt;
                 main.params.tryCPP = 1;
                 
@@ -274,13 +282,16 @@ classdef motionEstimatorClass < handle
             end
             
             for warps = 1:obj.numberOfWarps
-                %warp data terms
-                for j=1:obj.dims{i}(3)-1
-                    obj.listFlexbox{i}.duals{obj.flowTermNumber(j)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
-                    
-                    if (obj.doGradientConstancy)
-                        obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,1)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
-                        obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,2)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+                
+                if (obj.doWarping)
+                    %warp data terms
+                    for j=1:obj.dims{i}(3)-1
+                        obj.listFlexbox{i}.duals{obj.flowTermNumber(j)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+
+                        if (obj.doGradientConstancy)
+                            obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,1)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+                            obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,2)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+                        end
                     end
                 end
 
