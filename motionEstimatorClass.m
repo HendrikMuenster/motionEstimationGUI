@@ -30,6 +30,8 @@ classdef motionEstimatorClass < handle
         
         flowTermNumber
         
+        imageDiscretization
+        
         doGradientConstancy
         gradConstancyTermNumber
         
@@ -101,6 +103,14 @@ classdef motionEstimatorClass < handle
             else
                 obj.regularizerTerm = 'Huber';
             end
+            
+            %discretization for the image derivatives.
+            if (exist('imageDiscretization','var'))
+                obj.imageDiscretization = imageDiscretization;
+            else
+                obj.imageDiscretization = 'interpolated';
+            end
+            
         end
         
         function init(obj)
@@ -231,14 +241,14 @@ classdef motionEstimatorClass < handle
                     
                     %add optical flow data term
                     if (strcmp(obj.dataTerm,'L2'))
-                        obj.listFlexbox{i}.duals{obj.flowTermNumber(j)} = L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j});
+                        obj.listFlexbox{i}.duals{obj.flowTermNumber(j)} = L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'discretization',obj.imageDiscretization);
                         
                         if (obj.doGradientConstancy)
                             obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,1)} = L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',1);
                             obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,2)} = L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',2);
                         end
                     else %default is L1
-                        obj.listFlexbox{i}.duals{obj.flowTermNumber(j)} = L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j});
+                        obj.listFlexbox{i}.duals{obj.flowTermNumber(j)} = L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'discretization',obj.imageDiscretization);
                         
                         if (obj.doGradientConstancy)
                             obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,1)} = L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',1);
