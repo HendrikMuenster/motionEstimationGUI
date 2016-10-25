@@ -77,6 +77,9 @@ classdef motionEstimatorClass < handle
             
             if (exist('doWarping','var'))
                 obj.doWarping = doWarping;
+                if (doWarping == 0)
+                    obj.numberOfWarps = 1;
+                end
             else
                 obj.doWarping = 1;
             end
@@ -180,7 +183,7 @@ classdef motionEstimatorClass < handle
 
                     %add optical flow data term
                     if (strcmp(obj.dataTerm,'L2'))
-                        main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j}),[numP1,numP2]);
+                        main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'discretization',obj.imageDiscretization),[numP1,numP2]);
                         obj.flowTermNumber(j) = numel(main.duals);
                         
                         if (obj.doGradientConstancy)
@@ -190,7 +193,7 @@ classdef motionEstimatorClass < handle
                             obj.gradConstancyTermNumber(j,2) = numel(main.duals);
                         end
                     else %default is L1
-                        main.addTerm(L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j}),[numP1,numP2]);
+                        main.addTerm(L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'discretization',obj.imageDiscretization),[numP1,numP2]);
                         obj.flowTermNumber(j) = numel(main.duals);
                         
                         if (obj.doGradientConstancy)
