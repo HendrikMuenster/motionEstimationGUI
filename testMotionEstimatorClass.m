@@ -32,6 +32,9 @@ image2 = im2double(image2);
 image1 = imresize(image1,1);
 image2 = imresize(image2,1);
 
+figure(1);imagesc(image1)
+figure(2);imagesc(image2)
+
 flowGT = readFlowFile(['data',filesep,'flow10.flo']);
 flowGT2 = flowGT;
 flowGT2(abs(flowGT)>1e2) = 0;
@@ -42,7 +45,7 @@ figure(99);clf;imagesc(flowToColorV2(cat(3,flowGT2(:,:,1),flowGT2(:,:,2))));
 u = cat(3,image1,image2);
 
 tol = 1e-5;
-alpha = 0.015;
+alpha = 0.01;
 
 verbose = 2;
 dataTerm = 'L1';
