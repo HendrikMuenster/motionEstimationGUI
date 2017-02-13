@@ -18,11 +18,11 @@ clear all;close all;clc;
 addpath(genpath(cd));
 %%
 
-image1 = zeros(100,100,100);
-image2 = zeros(100,100,100);
+image1 = zeros(50,50,50);
+image2 = zeros(50,50,50);
 
-image1(20:40,40:60,20:40) = 1;
-image2(60:80,60:80,60:80) = 1;
+image1(20:40,20:40,10:30) = 1;
+image2(20:40,20:40,30:40) = 1;
 
 cut1 = squeeze(image1(:,10,:));
 cut2 = squeeze(image2(:,10,:));
@@ -37,8 +37,8 @@ tol = 1e-5;
 alpha = 0.01;
 
 verbose = 2;
-dataTerm = 'L1';
-regularizerTerm = 'Huber';
+dataTerm = 'L2';
+regularizerTerm = 'L2';
 doGradientConstancy = 0;
 steplength = 0.8;
 numberOfWarps = 5;
