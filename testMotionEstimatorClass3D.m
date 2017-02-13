@@ -17,32 +17,21 @@
 clear all;close all;clc;
 addpath(genpath(cd));
 %%
-image1 = imread(['data',filesep,'frame10.png']);
-image2 = imread(['data',filesep,'frame11.png']);
 
-if (size(image1,3)>1)
-    image1 = rgb2gray(image1);
-    image2 = rgb2gray(image2);
-end
+image1 = zeros(100,100,100);
+image2 = zeros(100,100,100);
 
-image1 = im2double(image1);
-image2 = im2double(image2);
+image1(20:40,40:60,20:40) = 1;
+image2(60:80,60:80,60:80) = 1;
 
-%resize image
-image1 = imresize(image1,1);
-image2 = imresize(image2,1);
+cut1 = squeeze(image1(:,10,:));
+cut2 = squeeze(image2(:,10,:));
 
-figure(1);imagesc(image1)
-figure(2);imagesc(image2)
-
-flowGT = readFlowFile(['data',filesep,'flow10.flo']);
-flowGT2 = flowGT;
-flowGT2(abs(flowGT)>1e2) = 0;
-figure(99);clf;imagesc(flowToColorV2(cat(3,flowGT2(:,:,1),flowGT2(:,:,2))));
-
+figure(1);imagesc(cut1);axis image;
+figure(2);imagesc(cut2);axis image;
 
 %%
-u = cat(3,image1,image2);
+u = cat(4,image1,image2);
 
 tol = 1e-5;
 alpha = 0.01;
@@ -52,7 +41,7 @@ dataTerm = 'L1';
 regularizerTerm = 'Huber';
 doGradientConstancy = 0;
 steplength = 0.8;
-numberOfWarps = 3;
+numberOfWarps = 5;
 
 %% 
 
@@ -68,7 +57,9 @@ tic;motionEstimator.runPyramid;toc;
 v = motionEstimator.getResult;
 
 %%
-tmp = v(:,:,1,1);
-v(:,:,1,1) = v(:,:,1,2);
-v(:,:,1,2) = tmp;
+for i=1:3
+    for j=1:size(v,3)
+        figure(1);imagesc(v(:,:,j,1,i));axis image;title(['Field ',num2str(j),', component ',num2str(i)]);colorbar;pause
+    end
+end
 error = absoluteError(squeeze(v(:,:,1,:)),flowGT)

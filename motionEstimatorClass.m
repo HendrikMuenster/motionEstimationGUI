@@ -35,11 +35,18 @@ classdef motionEstimatorClass < handle
         
         doGradientConstancy
         gradConstancyTermNumber
+        regularizerTermNumber
         
         dataTerm
         regularizerTerm
 
-        listFlexbox
+        flexboxObj
+        
+        %changes for 3D data
+        is3D
+        numberSpatialDims
+        numberImages
+        listImages
     end
     
     methods
@@ -50,6 +57,16 @@ classdef motionEstimatorClass < handle
             obj.alpha = alpha;
             obj.tol = tol;
             obj.dims{1} = size(imageSequence);
+            
+            if (ndims(imageSequence) == 4)
+                obj.is3D = 1;
+            else
+                obj.is3D = 0;
+            end
+            
+            obj.numberSpatialDims = ndims(obj.imageSequence) - 1;
+            obj.numberImages = size(imageSequence);
+            obj.numberImages = obj.numberImages(end);
             
             if (exist('verbose','var'))
                 obj.verbose = verbose;
@@ -124,105 +141,125 @@ classdef motionEstimatorClass < handle
         end
         
         function init(obj)
-            
-
-            %a = diag(mask);
-            %cut = find(a>1e-5, 1, 'first');
-            %mask = mask(cut:100-cut+1, cut:100-cut+1);
-            %mask = mask/sum(mask(:));
-            
-            %generate list of steps
+            %% generate list of steps
             obj.steps = 1;
             i = 2;
             while i < Inf
-                if (obj.steplength*obj.steps(i-1) * obj.dims{1}(1) > 25 && obj.steplength*obj.steps(i-1)*obj.dims{1}(2) > 25)
+                if (sum(obj.dims{i-1}(1:end-1) < 15) > 0)
+                    break;
+                else
                     obj.steps(i) = obj.steplength*obj.steps(i-1);
                     
                     obj.dims{i} = round(obj.dims{1} * obj.steps(i));
-                    obj.dims{i}(3) = obj.dims{1}(3);
+
+                    obj.dims{i}(end) = obj.dims{1}(end);
                     
                     i = i + 1;
-                else
-                    break;
                 end
             end
             
-            %% create flexBox obejects
+            %% generate smoothing mask:
+            smoothSigma = 1/sqrt(2*obj.steplength);
+            mask = fspecial('gaussian', [99 99], smoothSigma);
             
+            %% generate list of images
             for i=1:numel(obj.steps)
-                % generate smoothing mask:
-                smoothSigma = 1/sqrt(2*obj.steplength);
-                mask = fspecial('gaussian', [99 99], smoothSigma);
-                
-                clear main;
-                main = flexBox;
-                main.params.verbose = obj.verbose;
-                main.params.maxIt = obj.maxIt;
-                main.params.tryCPP = 1;
-                
-                tmpDims = obj.dims{i}(1:2);
-
-                for j=1:obj.dims{i}(3)-1
-                    %add two primal variables numbers are 2j-1 and 2j
-                    numP1 = main.addPrimalVar(tmpDims);
-                    numP2 = main.addPrimalVar(tmpDims);
-                    
-                    main.addTerm(emptyDataTerm(),numP1);
-                    main.addTerm(emptyDataTerm(),numP2);
-                    
+                for j=1:obj.numberImages
                     if (i==1)
-                        uTmp1{i,j} = obj.imageSequence(:,:,j);
-                        uTmp2{i,j} = obj.imageSequence(:,:,j+1);
+                        idx = repmat({':'},1,obj.numberSpatialDims);idx{end+1} = j;
+                        obj.listImages{i,j} = obj.imageSequence(idx{:});
                     else
-                        uTmp1{i,j} = imfilter(uTmp1{i-1,j}, mask, 'replicate');
-                        uTmp2{i,j} = imfilter(uTmp2{i-1,j}, mask, 'replicate');
-                    end
-
-                    uTmp1{i,j} = imresize(uTmp1{i,j},tmpDims,'bicubic');
-                    uTmp2{i,j} = imresize(uTmp2{i,j},tmpDims,'bicubic');
-
-                    %add optical flow data term
-                    if (strcmp(obj.dataTerm,'L2'))
-                        main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'discretization',obj.imageDiscretization),[numP1,numP2]);
-                        obj.flowTermNumber(j) = numel(main.duals);
+                        tmpDimsOld = size(obj.listImages{i-1,j});
+                        tmpDimsNew = obj.dims{i}(1:end-1);
                         
-                        if (obj.doGradientConstancy)
-                            main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',1),[numP1,numP2]);
-                            obj.gradConstancyTermNumber(j,1) = numel(main.duals);
-                            main.addTerm(L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',2),[numP1,numP2]);
-                            obj.gradConstancyTermNumber(j,2) = numel(main.duals);
+                        %create idx
+                        for k=1:obj.numberSpatialDims
+                            idxOld{k} = (0:(tmpDimsNew(k)-1) / (tmpDimsOld(k)-1) :tmpDimsNew(k)-1) + 1;
+                            idxNew{k} = 1:tmpDimsNew(k);
                         end
-                    else %default is L1
-                        main.addTerm(L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'discretization',obj.imageDiscretization),[numP1,numP2]);
-                        obj.flowTermNumber(j) = numel(main.duals);
                         
-                        if (obj.doGradientConstancy)
-                            main.addTerm(L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',1),[numP1,numP2]);
-                            obj.gradConstancyTermNumber(j,1) = numel(main.duals);
-                            main.addTerm(L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',2),[numP1,numP2]);
-                            obj.gradConstancyTermNumber(j,2) = numel(main.duals);
+                        gridOld = cell(1,obj.numberSpatialDims);
+                        gridNew = cell(1,obj.numberSpatialDims);
+                        
+                        [gridOld{:}] = ndgrid(idxOld{:});
+                        [gridNew{:}] = ndgrid(idxNew{:});
+                        
+                        stringResize = '';
+                        stringResize2 = '';
+                        for k=1:numel(tmpDimsOld)
+                            stringResize = [stringResize,',gridOld{',num2str(k),'}'];
+                            stringResize2 = [stringResize2,',gridNew{',num2str(k),'}'];
                         end
-                    end
-                    
-                    %obj.flowTermNumber(j) = numel(main.duals);
+                        stringResize = stringResize(2:end);
+                        
+                        obj.listImages{i,j} = imfilter(obj.listImages{i-1,j}, mask, 'replicate');
+                        obj.listImages{i,j} = eval(['interpn(',stringResize,',obj.listImages{',num2str(i),',',num2str(j),'}',stringResize2,',''bicubic'');']);
+                        
+                        check1 = isnan(obj.listImages{i,j});
+                        check2 = isinf(obj.listImages{i,j});
 
-                    %add regularizers - one for each component
-                    if (strcmp(obj.regularizerTerm,'L2'))
-                        main.addTerm(L2gradient(obj.alpha,tmpDims),numP1);
-                        main.addTerm(L2gradient(obj.alpha,tmpDims),numP2);
-                    elseif (strcmp(obj.regularizerTerm,'TV'))
-                        main.addTerm(L1gradientIso(obj.alpha,tmpDims),numP1);
-                        main.addTerm(L1gradientIso(obj.alpha,tmpDims),numP2);
-                    else %default is Huber
-                        main.addTerm(huberGradient(obj.alpha,tmpDims,0.01),numP1);
-                        main.addTerm(huberGradient(obj.alpha,tmpDims,0.01),numP2);
+                        if ((sum(check1(:)) + sum(check2(:))) > 0)
+                            error('Isinf + Isnan!!!')
+                        end
+                        
                     end
+                end
+            end
 
+            
+            %% create flexBox obeject
+            obj.flexboxObj = flexBox;
+            obj.flexboxObj.params.verbose = obj.verbose;
+            obj.flexboxObj.params.maxIt = obj.maxIt;
+            obj.flexboxObj.params.tryCPP = 1;
+            
+            %create initial flexBox object on coarsest scale
+            tmpDims = obj.dims{1}(1:end-1);
+
+            for j=1:obj.dims{1}(end) - 1
+                %add primal variables
+                for k=1:obj.numberSpatialDims
+                    numP(k) = obj.flexboxObj.addPrimalVar(tmpDims);
+                    obj.flexboxObj.addTerm(emptyDataTerm(),numP(k));
                 end
                 
-                obj.listFlexbox{i} = main;
+                if (strcmp(obj.dataTerm,'L2'))
+                    flowTermObject = L2opticalFlowTerm(1,obj.listImages{1,j},obj.listImages{1,j+1},'discretization',obj.imageDiscretization);
+                else %default is L1
+                    flowTermObject = L1opticalFlowTerm(1,obj.listImages{1,j},obj.listImages{1,j+1},'discretization',obj.imageDiscretization);
+                end
+                
+                obj.flexboxObj.addTerm(flowTermObject,numP);
+                obj.flowTermNumber(j) = numel(obj.flexboxObj.duals);
+
+                if (obj.doGradientConstancy)
+                    for k=1:obj.numberSpatialDims
+                        if (strcmp(obj.dataTerm,'L2'))
+                            gradientConstancyTermObject = L2opticalFlowTerm(1,obj.listImages{1,j},obj.listImages{1,j+1},'termType','gradientConstancy','constancyDimension',k);
+                        else %default is L1
+                            gradientConstancyTermObject = L1opticalFlowTerm(1,obj.listImages{1,j},obj.listImages{1,j+1},'termType','gradientConstancy','constancyDimension',k);
+                        end
+                        
+                        obj.flexboxObj.addTerm(gradientConstancyTermObject,numP);
+                        obj.gradConstancyTermNumber(j,k) = numel(obj.flexboxObj.duals);
+                    end
+                end
+
+                %create regularizer term
+                if (strcmp(obj.regularizerTerm,'L2'))
+                    regularizerObject = L2gradient(obj.alpha,tmpDims);
+                elseif (strcmp(obj.regularizerTerm,'TV'))
+                    regularizerObject = L1gradientIso(obj.alpha,tmpDims);
+                else %default is Huber
+                    regularizerObject = huberGradient(obj.alpha,tmpDims,0.01);
+                end
+                
+                for k=1:numel(tmpDims)
+                    obj.flexboxObj.addTerm(regularizerObject,numP(k));
+                    obj.regularizerTermNumber(j,k) = numel(obj.flexboxObj.duals);
+                end
             end
-            
+
             if (obj.verbose > 0)
                 disp('Initialization finished');
             end
@@ -230,98 +267,200 @@ classdef motionEstimatorClass < handle
         
         function resetImages(obj,imageSequence)
             obj.imageSequence = imageSequence;
-            
-            % generate smoothing mask:
-            smoothSigma = 1/sqrt(2*obj.steplength);
-            mask = fspecial('gaussian', [99 99], smoothSigma);
-            
-            for i=1:numel(obj.steps)
-                tmpDims = obj.dims{i}(1:2);
-                
-                for j=1:obj.dims{i}(3)-1
-                    if (i==1)
-                        uTmp1{i,j} = obj.imageSequence(:,:,j);
-                        uTmp2{i,j} = obj.imageSequence(:,:,j+1);
-                    else
-                        uTmp1{i,j} = imfilter(uTmp1{i-1,j}, mask, 'replicate');
-                        uTmp2{i,j} = imfilter(uTmp2{i-1,j}, mask, 'replicate');
-                    end
-
-                    uTmp1{i,j} = imresize(uTmp1{i,j},tmpDims,'bicubic');
-                    uTmp2{i,j} = imresize(uTmp2{i,j},tmpDims,'bicubic');
-                    
-                    %add optical flow data term
-                    if (strcmp(obj.dataTerm,'L2'))
-                        obj.listFlexbox{i}.duals{obj.flowTermNumber(j)} = L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'discretization',obj.imageDiscretization);
-                        
-                        if (obj.doGradientConstancy)
-                            obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,1)} = L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',1);
-                            obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,2)} = L2opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',2);
-                        end
-                    else %default is L1
-                        obj.listFlexbox{i}.duals{obj.flowTermNumber(j)} = L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'discretization',obj.imageDiscretization);
-                        
-                        if (obj.doGradientConstancy)
-                            obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,1)} = L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',1);
-                            obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,2)} = L1opticalFlowTerm(1,uTmp1{i,j},uTmp2{i,j},'termType','gradientConstancy','constancyDimension',2);
-                        end
-                    end
-                end
-            end
         end
 
         function v=getResult(obj)
-            for j=1:obj.dims{1}(3)-1
-                v(:,:,j,1) = obj.listFlexbox{1}.getPrimal(2*j-1);
-                v(:,:,j,2) = obj.listFlexbox{1}.getPrimal(2*j);
+            for j=1:obj.numberImages - 1
+                for k=1:obj.numberSpatialDims
+                    idx = repmat({':'},1,obj.numberSpatialDims);
+                    idx{end+1} = j;
+                    idx{end+1} = k;
+                    
+                    v(idx{:}) = obj.flexboxObj.getPrimal(obj.numberSpatialDims*(j-1) + k);
+                end
             end
             %attach one empty slice
-            v(:,:,obj.dims{1}(3),:) = 0;
+            idx = repmat({':'},1,obj.numberSpatialDims + 2);
+            idx{end-1} = obj.numberImages;
+            
+            v(idx{:}) = 0;
         end
         
-        function runLevel(obj,i)
+        function runLevel(obj,level)
             if (obj.verbose > 0)%on light verbose
-                disp(['Running level #',num2str(i)])
+                disp(['Running level #',num2str(level)])
             end
             
-            for warps = 1:obj.numberOfWarps
+            %
+            % adjust flexBox object for current level
+            %
+            
+            %read old dimension
+            tmpDimsOld = obj.flexboxObj.dims{1};
+            tmpDimsNew = obj.dims{level}(1:end-1);
+            
+            %create idx
+            for i=1:obj.numberSpatialDims
+                idxOld{i} = (0:(tmpDimsNew(i)-1) / (tmpDimsOld(i)-1) :tmpDimsNew(i)-1) + 1;
+                idxNew{i} = 1:tmpDimsNew(i);
+            end
+
+            gridOld = cell(1,obj.numberSpatialDims);
+            gridNew = cell(1,obj.numberSpatialDims);
+
+            [gridOld{:}] = ndgrid(idxOld{:});
+            [gridNew{:}] = ndgrid(idxNew{:});
+
+            stringResize = '';
+            stringResize2 = '';
+            for j=1:numel(tmpDimsOld)
+                stringResize = [stringResize,',gridOld{',num2str(j),'}'];
+                stringResize2 = [stringResize2,',gridNew{',num2str(j),'}'];
+            end
+            stringResize = stringResize(2:end);
+            
+            %upsample fields
+            for j=1:numel(obj.flexboxObj.x)
+                obj.flexboxObj.x{j} = reshape(obj.flexboxObj.x{j},tmpDimsOld);
                 
+                resizedVar = eval(['interpn(',stringResize,',obj.flexboxObj.x{',num2str(j),'}',stringResize2,',''nearest'');']);
+                
+                check1 = isnan(resizedVar);
+                check2 = isinf(resizedVar);
+                
+                if ((sum(check1(:)) + sum(check2(:))) > 0)
+                    error('Isinf + Isnan!!!')
+                end
+                
+                dimNumber = mod(j,numel(tmpDimsOld)) + 1;
+                
+                obj.flexboxObj.x{j} = resizedVar*tmpDimsNew(dimNumber)/tmpDimsOld(dimNumber);
+                obj.flexboxObj.x{j} = obj.flexboxObj.x{j}(:);
+                
+                obj.flexboxObj.xBar{j} = obj.flexboxObj.x{j};
+
+                %set dims
+                obj.flexboxObj.dims{j} = tmpDimsNew;
+            end
+
+            for j=1:numel(obj.flexboxObj.y)
+                obj.flexboxObj.y{j} = reshape(obj.flexboxObj.y{j},tmpDimsOld);
+                
+                resizedVar = eval(['interpn(',stringResize,',obj.flexboxObj.y{',num2str(j),'}',stringResize2,',''nearest'');']);
+                
+                obj.flexboxObj.y{j} = resizedVar(:);
+                
+                check1 = isnan(resizedVar);
+                check2 = isinf(resizedVar);
+                
+                if ((sum(check1(:)) + sum(check2(:))) > 0)
+                    error('Isinf + Isnan!!!')
+                end
+            end
+
+            %replace data terms and regularizer
+            for j=1:numel(obj.flowTermNumber)
+                if (strcmp(obj.dataTerm,'L2'))
+                    flowTermObject = L2opticalFlowTerm(1,obj.listImages{level,j},obj.listImages{level,j+1},'discretization',obj.imageDiscretization);
+                else %default is L1
+                    flowTermObject = L1opticalFlowTerm(1,obj.listImages{level,j},obj.listImages{level,j+1},'discretization',obj.imageDiscretization);
+                end
+
+                obj.flexboxObj.duals{obj.flowTermNumber(j)} = flowTermObject;
+                
+                clear flowTermObject;
+
+                if (obj.doGradientConstancy)
+                    for k=1:size(obj.gradConstancyTermNumber,2)
+                        if (strcmp(obj.dataTerm,'L2'))
+                            gradientConstancyTermObject = L2opticalFlowTerm(1,obj.listImages{level,j},obj.listImages{level,j+1},'termType','gradientConstancy','constancyDimension',k);
+                        else %default is L1
+                            gradientConstancyTermObject = L1opticalFlowTerm(1,obj.listImages{level,j},obj.listImages{level,j+1},'termType','gradientConstancy','constancyDimension',k);
+                        end
+
+                        obj.flexboxObj.duals{obj.gradConstancyTermNumber(j,k)} = gradientConstancyTermObject;
+                    end
+                    
+                    clear gradientConstancyTermObject;
+                end
+            end
+
+            %adjust regularization
+            if (strcmp(obj.regularizerTerm,'L2'))
+                regularizerObject = L2gradient(obj.alpha,tmpDimsNew);
+            elseif (strcmp(obj.regularizerTerm,'TV'))
+                regularizerObject = L1gradientIso(obj.alpha,tmpDimsNew);
+            else %default is Huber
+                regularizerObject = huberGradient(obj.alpha,tmpDimsNew,0.01);
+            end
+
+            for j=1:size(obj.regularizerTermNumber,1)
+                for k=1:size(obj.regularizerTermNumber,2)
+                    obj.flexboxObj.duals{obj.regularizerTermNumber(j,k)} = regularizerObject;
+                end
+            end
+            
+            clear regularizerObject;
+            
+            for warps = 1:obj.numberOfWarps
                 if (obj.doWarping)
+                    v = obj.getResult;
                     %warp data terms
-                    for j=1:obj.dims{i}(3)-1
-                        obj.listFlexbox{i}.duals{obj.flowTermNumber(j)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+                    for j=1:obj.numberImages-1
+                        idx = repmat({':'},1,obj.numberSpatialDims + 2);
+                        idx{end-1} = j;
+                        
+                        obj.flexboxObj.duals{obj.flowTermNumber(j)}.warpDataterm(squeeze(v(idx{:})));
 
                         if (obj.doGradientConstancy)
-                            obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,1)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
-                            obj.listFlexbox{i}.duals{obj.gradConstancyTermNumber(j,2)}.warpDataterm(obj.listFlexbox{i}.x{2*j-1},obj.listFlexbox{i}.x{2*j});
+                            for k=1:obj.numberSpatialDims
+                                obj.flexboxObj.duals{obj.gradConstancyTermNumber(j,k)}.warpDataterm(squeeze(v(idx{:})));
+                            end
                         end
                     end
                 end
 
-                obj.listFlexbox{i}.runAlgorithm;
+                obj.flexboxObj.runAlgorithm;
                 
                 if (obj.medianFiltering)
-                    for j=1:obj.dims{i}(3)-1
-
-                        obj.listFlexbox{i}.x{2*j-1} = medfilt2(obj.listFlexbox{i}.getPrimal(2*j-1), [5 5],'symmetric');
-                        obj.listFlexbox{i}.x{2*j} = medfilt2(obj.listFlexbox{i}.getPrimal(2*j), [5 5],'symmetric');
-
-                        obj.listFlexbox{i}.x{2*j-1} = obj.listFlexbox{i}.x{2*j-1}(:);
-                        obj.listFlexbox{i}.x{2*j} = obj.listFlexbox{i}.x{2*j}(:);
+                    for j=1:obj.numberImages-1
+                        for k=1:obj.numberSpatialDims
+                            varNumber = obj.numberSpatialDims*(j-1)+k;
+                            if (obj.numberSpatialDims == 2)
+                                obj.flexboxObj.x{varNumber} = medfilt2(obj.flexboxObj.getPrimal(varNumber), [5 5],'symmetric');
+                            elseif (obj.numberSpatialDims == 3)
+                                obj.flexboxObj.x{varNumber} = medfilt3(obj.flexboxObj.getPrimal(varNumber), [5 5 5],'symmetric');
+                            else
+                                error('Median filtering only exists for dimension 2 and 3. Please turn this option off!');
+                            end
+                            obj.flexboxObj.x{varNumber} = obj.flexboxObj.x{varNumber}(:);
+                        end
 
                         if (obj.verbose > 1)%on massive verbose
                             clear flowField;
-                            flowField(:,:,1) = obj.listFlexbox{i}.getPrimal(2*j-1);
-                            flowField(:,:,2) = obj.listFlexbox{i}.getPrimal(2*j);
+                            
+                            if (obj.numberSpatialDims == 2)
+                                flowField(:,:,2) = obj.flexboxObj.getPrimal(2*j-1);
+                                flowField(:,:,1) = obj.flexboxObj.getPrimal(2*j);
 
-                            figure(300+j);imagesc(flowToColorV2(flowField));axis image;title(['Level #',num2str(i),' : Field #',num2str(j)]);drawnow;
-
+                                figure(300+j);imagesc(flowToColorV2(flowField));axis image;title(['Level #',num2str(i),' : Field #',num2str(j)]);drawnow;
+                            elseif (obj.numberSpatialDims == 3)
+                                %one slice
+                                flowField1 = obj.flexboxObj.getPrimal(3*j-1);
+                                flowField2 = obj.flexboxObj.getPrimal(3*j);
+                                
+                                nSlices = size(flowField1,3);
+                                flowField1 = flowField1(:,:,floor(nSlices/2));
+                                flowField2 = flowField2(:,:,floor(nSlices/2));
+                                
+                                figure(300+j);imagesc(flowToColorV2(cat(3,flowField1,flowField2)));axis image;
+                                title(['Level #',num2str(i),' : Field #',num2str(j)]);drawnow;
+                                
+                            end
                         end
                     end
                 end
             end
-            
-
         end
         
         function runPyramid(obj)
@@ -330,24 +469,6 @@ classdef motionEstimatorClass < handle
             end
             
             for i=numel(obj.steps) : -1 : 1
-                %warp previous
-                if (i < numel(obj.steps))
-                    %upsample fields
-                    tmpDimsOld = obj.dims{i+1}(1:2);
-                    tmpDimsNew = obj.dims{i}(1:2);
-                    
-                    for j=1:numel(obj.listFlexbox{i}.x)
-                        obj.listFlexbox{i}.x{j} = reshape(obj.listFlexbox{i+1}.x{j},tmpDimsOld);
-                        obj.listFlexbox{i}.x{j} = imresize(obj.listFlexbox{i}.x{j},tmpDimsNew,'nearest')*tmpDimsNew(mod(1+j,2)+1)/tmpDimsOld(mod(1+j,2)+1);
-                        obj.listFlexbox{i}.x{j} = obj.listFlexbox{i}.x{j}(:);
-                    end
-                    
-                    for j=1:numel(obj.listFlexbox{i}.y)
-                        obj.listFlexbox{i}.y{j} = reshape(obj.listFlexbox{i+1}.y{j},tmpDimsOld);
-                        obj.listFlexbox{i}.y{j} = imresize(obj.listFlexbox{i}.y{j},tmpDimsNew,'nearest');
-                        obj.listFlexbox{i}.y{j} = obj.listFlexbox{i}.y{j}(:);
-                    end
-                end
                 obj.runLevel(i);
             end
             
