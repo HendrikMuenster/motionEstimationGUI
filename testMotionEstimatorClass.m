@@ -51,15 +51,14 @@ verbose = 2;
 dataTerm = 'L1';
 regularizerTerm = 'Huber';
 doGradientConstancy = 0;
-steplength = 0.8;
-numberOfWarps = 3;
+steplength = 0.9;
+numberOfWarps = 5;
 
 %% 
 
-motionEstimator = motionEstimatorClass(u,tol,alpha,'dataTerm',dataTerm,'regularizerTerm',regularizerTerm,'doGradientConstancy',doGradientConstancy,'steplength',steplength,'numberOfWarps',numberOfWarps);
+motionEstimator = motionEstimatorClass(u,tol,alpha,'verbose',verbose,'dataTerm',dataTerm,'regularizerTerm',regularizerTerm,'doGradientConstancy',doGradientConstancy,'steplength',steplength,'numberOfWarps',numberOfWarps);
 motionEstimator.init;
 
-motionEstimator.verbose = verbose;
 
 %%
 tic;motionEstimator.runPyramid;toc;

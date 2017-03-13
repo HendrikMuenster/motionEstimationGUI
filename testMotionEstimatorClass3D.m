@@ -17,9 +17,10 @@
 clear all;close all;clc;
 addpath(genpath(cd));
 %%
+sizeG = 20;
 
-image1 = zeros(20,20,20);
-image2 = zeros(20,20,20);
+image1 = zeros(sizeG,sizeG,sizeG) + rand(sizeG,sizeG,sizeG)*0.1;
+image2 = zeros(sizeG,sizeG,sizeG) + rand(sizeG,sizeG,sizeG)*0.1;
 
 image1(5:15,5:15,5:15) = 1;
 image2(5:15,5:15,8:18) = 1;
@@ -36,7 +37,7 @@ u = cat(4,image1,image2);
 tol = 1e-5;
 alpha = 0.01;
 
-verbose = 2;
+verbose = 0;
 dataTerm = 'L1';
 regularizerTerm = 'Huber';
 doGradientConstancy = 0;
@@ -45,12 +46,12 @@ numberOfWarps = 5;
 
 %% 
 
-motionEstimator = motionEstimatorClass(u,tol,alpha,'dataTerm',dataTerm,'regularizerTerm',regularizerTerm,'doGradientConstancy',doGradientConstancy,'steplength',steplength,'numberOfWarps',numberOfWarps);
+motionEstimator = motionEstimatorClass(u,tol,alpha,'verbose',verbose,'dataTerm',dataTerm,'regularizerTerm',regularizerTerm,'doGradientConstancy',doGradientConstancy,'steplength',steplength,'numberOfWarps',numberOfWarps);
 motionEstimator.init;
 
-motionEstimator.verbose = verbose;
 
 %%
+
 tic;motionEstimator.runPyramid;toc;
 
 %%

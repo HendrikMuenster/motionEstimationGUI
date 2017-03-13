@@ -159,8 +159,11 @@ classdef motionEstimatorClass < handle
             end
             
             %% generate smoothing mask:
-            smoothSigma = 1/sqrt(2*obj.steplength);
-            mask = fspecial('gaussian', [99 99], smoothSigma);
+            %smoothSigma = 1/sqrt(2*obj.steplength);
+            %mask = fspecial('gaussian', [99 99], smoothSigma);
+            
+            smooth_sigma      = sqrt(1/obj.steplength)/sqrt(2);
+            mask = fspecial('gaussian', 2*round(1.5*smooth_sigma) +1, smooth_sigma);
             
             %% generate list of images
             for i=1:numel(obj.steps)
@@ -220,7 +223,7 @@ classdef motionEstimatorClass < handle
                 %add primal variables
                 for k=1:obj.numberSpatialDims
                     numP(k) = obj.flexboxObj.addPrimalVar(tmpDims);
-                    obj.flexboxObj.addTerm(emptyDataTerm(),numP(k));
+                    %obj.flexboxObj.addTerm(emptyDataTerm(),numP(k));
                 end
                 
                 if (strcmp(obj.dataTerm,'L2'))
